@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#06060a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Spin Remote">
+<title>Spin Remote</title>
+<style>@property --accent { syntax: '<color>'; inherits: true; initial-value: #b45cff; }
+:root {
+  --accent: #b45cff;
+  --bg: #06060a;
+  --ink: #eceaf5;
+  --dim: #8b88a0;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  transition: --accent .5s ease;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden; overscroll-behavior: none;
+  font-family: ui-rounded, 'SF Pro Rounded', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; -webkit-user-select: none; user-select: none; touch-action: none; }
+button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; touch-action: none; }
+#app { position: fixed; inset: 0; display: flex; flex-direction: column; max-width: 560px; margin: 0 auto;
+  background:
+    radial-gradient(120% 60% at 50% 105%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 62%),
+    radial-gradient(80% 40% at 50% -10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
+    var(--bg); }
+@media (min-width: 600px) { #app { border-left: 1px solid #1a1a24; border-right: 1px solid #1a1a24; } }
+
+/* header */
+#top { display: flex; align-items: center; gap: 8px; padding: calc(10px + var(--safe-t)) 12px 8px; height: calc(54px + var(--safe-t)); flex: none; z-index: 30; }
+.brand { font-weight: 800; letter-spacing: .14em; font-size: 13px; line-height: 1; display: flex; flex-direction: column; gap: 3px; margin-right: 2px; }
+.brand b { color: var(--accent); text-shadow: 0 0 12px var(--accent); font-size: 15px; }
+.brand i { font-style: normal; font-weight: 600; font-size: 8.5px; color: var(--dim); letter-spacing: .38em; text-transform: uppercase; }
+.pill { flex: 1; min-width: 0; height: 36px; border-radius: 18px; display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); font-size: 13px; color: #d8d6e6; backdrop-filter: blur(8px); }
+.pill span#pill-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; flex: none; box-shadow: 0 0 0 0 transparent; }
+.pill.ok .dot { background: #3dff9a; box-shadow: 0 0 10px #3dff9a; }
+.pill.warn .dot { background: #ffc83d; box-shadow: 0 0 10px #ffc83d; }
+.icon-btn { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; flex: none; color: var(--accent);
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); transition: transform .12s, box-shadow .2s; }
+.icon-btn:active { transform: scale(.9); box-shadow: 0 0 14px var(--accent); }
+.icon-btn.off { color: #666; }
+#demo-banner { flex: none; height: 22px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 10.5px; letter-spacing: .06em;
+  color: #ffd27a; background: linear-gradient(90deg, transparent, rgba(255,184,40,.14), transparent); border-block: 1px solid rgba(255,184,40,.22); z-index: 30; }
+#demo-banner b { letter-spacing: .2em; }
+#demo-banner[hidden] { display: none; }
+.blink { width: 6px; height: 6px; border-radius: 50%; background: #ffb828; animation: blink 1.4s infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+
+/* stage */
+#stage { position: relative; flex: 1; min-height: 0; perspective: 1300px; perspective-origin: 50% 45%; overflow: hidden; touch-action: none; }
+#fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#cards, #ring { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.card { position: absolute; width: 320px; height: 640px; left: -160px; top: -320px; transform-style: flat; will-change: transform, opacity, filter; backface-visibility: hidden; }
+.card.inactive { pointer-events: none; }
+.card::after { content: ''; position: absolute; inset: 0; border-radius: 40px; pointer-events: none; opacity: var(--dim-o, 0); background: #06060a; transition: none; }
+#toast { position: absolute; left: 50%; bottom: 10px; transform: translate(-50%, 14px); opacity: 0; z-index: 40; pointer-events: none; max-width: 92%;
+  font: 600 11px/1.3 ui-monospace, 'SF Mono', Menlo, monospace; color: var(--accent); background: rgba(8,8,14,.88); border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  padding: 7px 12px; border-radius: 10px; box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 35%, transparent); transition: opacity .15s, transform .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.err { color: #ff7d8a; border-color: rgba(255,125,138,.6); box-shadow: 0 0 18px rgba(255,80,100,.3); }
+
+/* orbs (ring layout) */
+.orb { position: absolute; left: -30px; top: -30px; width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; align-content: center; text-align: center;
+  color: #0a0a10; font-weight: 800; will-change: transform, opacity, filter; pointer-events: auto; touch-action: none;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 55%, #fff), var(--c) 55%, color-mix(in srgb, var(--c) 70%, #000));
+  box-shadow: 0 0 22px color-mix(in srgb, var(--c) 55%, transparent), inset 0 -4px 8px rgba(0,0,0,.25); }
+.orb .n { font-size: 20px; line-height: 1; }
+.orb .l { font-size: 8px; letter-spacing: .12em; margin-top: 2px; font-weight: 800; opacity: .8; }
+.orb.sel { outline: 2px solid #fff; outline-offset: 3px; }
+
+/* dock */
+#dock { position: relative; flex: none; display: flex; margin: 4px 12px calc(10px + var(--safe-b)); height: 50px; border-radius: 26px; z-index: 30;
+  background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.09); backdrop-filter: blur(10px); touch-action: none; }
+#dock-ind { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(25% - 2px); border-radius: 22px; z-index: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 36%, transparent), color-mix(in srgb, var(--accent) 14%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent);
+  transition: transform .38s cubic-bezier(.3,1.5,.5,1); }
+.dock-item { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: #9a97b0; transition: color .25s; }
+.dock-item .dn { font-size: 8.5px; letter-spacing: .2em; opacity: .7; font-weight: 700; }
+.dock-item .dl { font-size: 12.5px; font-weight: 700; letter-spacing: .02em; }
+.dock-item.on { color: #fff; }
+
+/* sheet */
+#backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.55); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 50; backdrop-filter: blur(3px); }
+#backdrop.on { opacity: 1; pointer-events: auto; }
+#sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 86%; z-index: 60; transform: translateY(105%); transition: transform .32s cubic-bezier(.2,.9,.25,1);
+  background: linear-gradient(#14131d, #0c0b12); border-top: 1px solid color-mix(in srgb, var(--accent) 50%, transparent); border-radius: 26px 26px 0 0;
+  box-shadow: 0 -10px 50px rgba(0,0,0,.6), 0 -1px 30px color-mix(in srgb, var(--accent) 25%, transparent); padding: 8px 18px calc(22px + var(--safe-b)); overflow-y: auto; touch-action: pan-y; }
+#sheet.on { transform: none; }
+.grab { width: 40px; height: 4px; border-radius: 2px; background: #3a3850; margin: 4px auto 14px; }
+#sheet h2 { margin: 0 0 4px; font-size: 19px; letter-spacing: .01em; }
+#sheet p.sub { margin: 0 0 14px; color: var(--dim); font-size: 13px; line-height: 1.4; }
+.sec { font-size: 10.5px; letter-spacing: .2em; color: var(--dim); margin: 16px 0 8px; font-weight: 700; text-transform: uppercase; }
+.row { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 16px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); margin-bottom: 8px; }
+.row .badge { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-weight: 800; font-size: 10px; letter-spacing: .06em; color: #0a0a10; background: var(--c); flex: none; }
+.row .meta { flex: 1; min-width: 0; } .row .nm { font-weight: 700; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .st { font-size: 11.5px; color: var(--dim); margin-top: 2px; } .row .st.ok { color: #3dff9a; } .row .st.warn { color: #ffc83d; }
+.sbtn { height: 34px; padding: 0 14px; border-radius: 12px; font-weight: 700; font-size: 12.5px; color: #0a0a10; background: var(--accent); box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 50%, transparent); flex: none; }
+.sbtn.ghost { color: var(--ink); background: rgba(255,255,255,.07); box-shadow: none; border: 1px solid rgba(255,255,255,.1); }
+.sbtn.wide { width: 100%; height: 46px; border-radius: 16px; font-size: 15px; }
+.sbtn:disabled { opacity: .5; }
+.toggle { display: flex; align-items: center; justify-content: space-between; padding: 12px 4px; font-size: 14.5px; }
+.sw { width: 46px; height: 28px; border-radius: 14px; background: #2a2838; position: relative; transition: background .2s; } .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #aaa; transition: .2s; }
+.sw.on { background: color-mix(in srgb, var(--accent) 70%, #000); } .sw.on::after { left: 21px; background: #fff; }
+.form { display: flex; gap: 8px; } .form select, .form input { height: 40px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: var(--ink); padding: 0 10px; font: inherit; font-size: 16px; min-width: 0; -webkit-user-select: text; user-select: text; touch-action: auto; }
+.form input { flex: 1; }
+.scan { display: flex; align-items: center; gap: 10px; }
+.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,.2); border-top-color: var(--accent); animation: sp .8s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+.codebox { display: flex; gap: 8px; justify-content: center; margin: 18px 0 14px; position: relative; }
+.codebox i { width: 42px; height: 54px; border-radius: 14px; display: grid; place-items: center; font: 700 24px ui-monospace, Menlo, monospace; font-style: normal; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); text-transform: uppercase; }
+.codebox i.cur { border-color: var(--accent); box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 55%, transparent); }
+.codebox input { position: absolute; inset: 0; opacity: 0; font-size: 16px; width: 100%; height: 100%; -webkit-user-select: text; user-select: text; touch-action: auto; }
+.hint { text-align: center; color: #ffd27a; font-size: 12px; margin: -4px 0 12px; }
+.err { color: #ff7d8a; text-align: center; font-size: 13px; min-height: 18px; margin: 4px 0 8px; }
+.steps { text-align: center; font-size: 10.5px; letter-spacing: .2em; color: var(--dim); margin-bottom: 6px; }
+.textbox { display: flex; gap: 8px; margin: 14px 0 6px; }
+.textbox input { flex: 1; height: 48px; border-radius: 14px; border: 1px solid var(--accent); background: rgba(255,255,255,.05); color: #fff; padding: 0 14px; font: inherit; font-size: 17px; box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 30%, transparent); -webkit-user-select: text; user-select: text; touch-action: auto; }
+
+/* ============ remotes ============ */
+.remote { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 16px 16px;
+  --rc: var(--accent); color: #e8e6f2; }
+.remote .r-top { width: 100%; display: flex; align-items: center; justify-content: space-between; min-height: 38px; }
+.wordmark { font-weight: 800; font-size: 19px; letter-spacing: .02em; text-transform: lowercase; display: flex; flex-direction: column; align-items: center; line-height: .95; }
+.wordmark i { font-style: normal; font-size: 7.5px; letter-spacing: .4em; opacity: .55; margin-top: 3px; text-transform: uppercase; font-weight: 700; }
+.spacer-sm { width: 34px; }
+.btn { position: relative; display: grid; place-items: center; color: #e7e5f3; font-weight: 800; letter-spacing: .06em;
+  background: linear-gradient(180deg, #2b2a38, #181722); border: 1px solid rgba(255,255,255,.09);
+  box-shadow: 0 3px 0 #08080d, 0 6px 14px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.1);
+  transition: transform .08s, box-shadow .15s, background .15s, color .15s; touch-action: none; }
+.btn.round { width: 54px; height: 54px; border-radius: 50%; } .btn.round.sm { width: 38px; height: 38px; } .btn.round.big { width: 66px; height: 66px; color: var(--rc); }
+.btn.pill { height: 46px; border-radius: 23px; width: 100%; }
+.btn.pressed, .dp.pressed { transform: translateY(2px) scale(.94); color: #fff;
+  box-shadow: 0 0 0 1px var(--rc), 0 0 20px var(--rc), inset 0 0 14px color-mix(in srgb, var(--rc) 55%, transparent); background: linear-gradient(180deg, color-mix(in srgb, var(--rc) 30%, #1c1b27), #14131c); }
+.btn.power { color: #ff6b7a; }
+.btn.fired::after { content: ''; position: absolute; inset: -2px; border-radius: inherit; border: 2px solid var(--rc); animation: fired .45s ease-out forwards; pointer-events: none; }
+@keyframes fired { from { opacity: .9; transform: scale(1); } to { opacity: 0; transform: scale(1.35); } }
+.btn svg { pointer-events: none; }
+.btn span { pointer-events: none; }
+.row3, .row2, .grid2, .apps4, .apps2 { width: 100%; display: grid; gap: 10px; align-items: center; justify-items: center; }
+.row3 { grid-template-columns: repeat(3, 1fr); } .row2 { grid-template-columns: repeat(3, 1fr); } .grid2 { grid-template-columns: 1fr 1fr; } .apps4 { grid-template-columns: repeat(4, 1fr); gap: 6px; } .apps2 { grid-template-columns: 1fr 1fr; }
+.row3.vol .btn.pill { height: 40px; }
+
+/* d-pad: four clip-path wedges + center OK */
+.dpad { position: relative; width: 214px; height: 214px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 50% 35%, #2a2937, #14131c 70%); border: 1px solid rgba(255,255,255,.1);
+  box-shadow: 0 0 0 5px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.55), inset 0 2px 0 rgba(255,255,255,.08), 0 0 30px color-mix(in srgb, var(--rc) 22%, transparent); }
+.dp { position: absolute; inset: 0; border-radius: 50%; display: grid; color: #bdbad0; touch-action: none; transition: background .12s, color .12s, transform .08s; }
+.dp svg { position: absolute; pointer-events: none; width: 24px; height: 24px; stroke-width: 2.6; }
+.dp-up { clip-path: polygon(50% 50%, 6% 6%, 94% 6%); } .dp-up svg { left: 95px; top: 24px; }
+.dp-down { clip-path: polygon(50% 50%, 6% 94%, 94% 94%); } .dp-down svg { left: 95px; bottom: 24px; }
+.dp-left { clip-path: polygon(50% 50%, 6% 6%, 6% 94%); } .dp-left svg { left: 24px; top: 95px; }
+.dp-right { clip-path: polygon(50% 50%, 94% 6%, 94% 94%); } .dp-right svg { right: 24px; top: 95px; }
+.dp.pressed { transform: none; background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--rc) 55%, transparent), color-mix(in srgb, var(--rc) 12%, transparent)); box-shadow: none; }
+.dp-ok { position: absolute; left: 50%; top: 50%; margin: -42px 0 0 -42px; width: 84px; height: 84px; border-radius: 50%; font-size: 17px; z-index: 2; }
+.dpad::before { content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 1;
+  background: conic-gradient(from 45deg, transparent 0 21%, rgba(0,0,0,.55) 24% 26%, transparent 29% 46%, rgba(0,0,0,.55) 49% 51%, transparent 54% 71%, rgba(0,0,0,.55) 74% 76%, transparent 79% 96%, rgba(0,0,0,.55) 99%, transparent);
+  -webkit-mask: radial-gradient(circle, transparent 46px, #000 47px); mask: radial-gradient(circle, transparent 46px, #000 47px); }
+
+/* --- Roku: violet, squared --- */
+.remote.roku { width: 300px; height: 626px; border-radius: 30px; --rc: #b45cff;
+  background: linear-gradient(165deg, #231238 0%, #130a21 45%, #0b0613 100%); border: 1px solid rgba(180,92,255,.5);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 0 40px rgba(130,50,210,.2), 0 0 50px rgba(150,70,240,.38), 0 24px 40px rgba(0,0,0,.6); }
+.roku .wordmark { color: #cf9bff; text-shadow: 0 0 14px rgba(180,92,255,.8); font-size: 22px; }
+.roku .btn.pill { background: linear-gradient(180deg, #3a2457, #20122f); }
+.roku .app { height: 34px; width: 100%; border-radius: 10px; font-size: 8.5px; letter-spacing: .04em; }
+.a-red { background: linear-gradient(180deg, #e50914, #8c0610) !important; } .a-ytred { background: linear-gradient(180deg, #ff2d2d, #a00) !important; }
+.a-blue { background: linear-gradient(180deg, #1a98ff, #0b5aa8) !important; } .a-navy { background: linear-gradient(180deg, #1c3a8a, #0d1c55) !important; }
+.app span { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.apps4 { margin-top: auto; }
+/* --- Fire TV: carbon black, orange --- */
+.remote.firetv { width: 286px; height: 590px; border-radius: 44px; --rc: #ff9a1f; padding-top: 18px;
+  background: linear-gradient(170deg, #1b1b21 0%, #0d0d11 60%, #08080a 100%), repeating-linear-gradient(45deg, #000 0 2px, #111 2px 4px); border: 1px solid rgba(255,154,31,.5);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 0 48px rgba(255,140,20,.33), 0 24px 40px rgba(0,0,0,.6); justify-content: space-between; }
+.firetv .wordmark { color: #ffb552; text-shadow: 0 0 14px rgba(255,150,30,.8); }
+.firetv .dpad { box-shadow: 0 0 0 5px rgba(0,0,0,.45), 0 0 0 7px rgba(255,154,31,.35), 0 8px 24px rgba(0,0,0,.55), 0 0 30px rgba(255,154,31,.25); }
+.firetv .btn.round { background: linear-gradient(180deg, #2a2a31, #15151a); }
+.firetv .btn.pill { background: linear-gradient(180deg, #2a2a31, #15151a); }
+/* --- Google TV: chalk pebble --- */
+.remote.googletv { width: 282px; height: 636px; border-radius: 141px 141px 70px 70px; --rc: #2a74ff; padding-top: 22px; gap: 11px; color: #202330;
+  background: linear-gradient(170deg, #fbfbfd 0%, #e7e9ef 55%, #d3d6df 100%); border: 1px solid rgba(255,255,255,.9);
+  box-shadow: inset 0 -8px 20px rgba(0,0,0,.08), 0 0 56px rgba(77,155,255,.5), 0 24px 40px rgba(0,0,0,.6); }
+.googletv .btn { color: #2b2f40; background: linear-gradient(180deg, #ffffff, #dfe2ea); border: 1px solid rgba(0,0,0,.08); box-shadow: 0 3px 0 #b9bdc9, 0 6px 12px rgba(30,40,80,.18), inset 0 1px 0 #fff; }
+.googletv .btn.pressed { background: linear-gradient(180deg, #d9e8ff, #bcd5ff); color: #0b3fa8; box-shadow: 0 0 0 1px #2a74ff, 0 0 18px #4d9bff; }
+.googletv .btn.power { color: #d93a4c; }
+.googletv .btn.round.big { color: #2a74ff; }
+.googletv .assist { width: 92px; height: 38px; }
+.googletv .dpad.light { background: radial-gradient(circle at 50% 30%, #fff, #e4e7ee 75%); border-color: rgba(0,0,0,.08); box-shadow: 0 0 0 5px rgba(255,255,255,.7), 0 8px 18px rgba(30,40,80,.22), inset 0 -3px 8px rgba(0,0,0,.06); }
+.googletv .dp { color: #55596d; } .googletv .dpad.light::before { background: conic-gradient(from 45deg, transparent 0 21%, rgba(0,0,0,.12) 24% 26%, transparent 29% 46%, rgba(0,0,0,.12) 49% 51%, transparent 54% 71%, rgba(0,0,0,.12) 74% 76%, transparent 79% 96%, rgba(0,0,0,.12) 99%, transparent); }
+.googletv .dp.pressed { background: radial-gradient(circle, rgba(42,116,255,.5), rgba(42,116,255,.1)); color: #0b3fa8; }
+.googletv .row2 { gap: 8px; } .gt-mid { width: 100%; }
+.gt-vol { width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; justify-items: center; }
+.rocker { width: 56px; height: 104px; border-radius: 28px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 4px;
+  background: rgba(0,0,0,.08); box-shadow: inset 0 2px 6px rgba(0,0,0,.18); }
+.rocker .rk { width: 46px; height: 42px; border-radius: 21px; } .rk-l { font-size: 8px; letter-spacing: .16em; font-weight: 800; opacity: .5; }
+.googletv .apps2 { margin-top: auto; padding: 0 14px 6px; } .googletv .app { height: 36px; width: 100%; border-radius: 18px; font-size: 10px; }
+.googletv .app span { color: #fff; }
+/* --- Apple TV: brushed aluminum --- */
+.remote.appletv { width: 258px; height: 640px; border-radius: 36px; --rc: #cfd6e6; color: #20232b; padding-top: 16px; gap: 14px;
+  background: linear-gradient(100deg, #b7bbc4 0%, #e9ebf0 22%, #c3c7cf 48%, #eef0f4 74%, #aeb2bb 100%); border: 1px solid rgba(255,255,255,.7);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -10px 22px rgba(0,0,0,.18), 0 0 50px rgba(220,230,255,.4), 0 24px 40px rgba(0,0,0,.65); }
+.appletv .wordmark { color: #3a3e49; } .appletv .wordmark i { opacity: .6; }
+.appletv .btn { color: #d9dce6; background: linear-gradient(180deg, #2f3138, #101114); border-color: rgba(0,0,0,.4); box-shadow: 0 3px 0 #6c707b, 0 6px 12px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.14); }
+.appletv .btn.pressed { background: linear-gradient(180deg, #4c5262, #23262e); box-shadow: 0 0 0 1px #fff, 0 0 18px rgba(255,255,255,.8); }
+.clickpad { position: relative; width: 226px; height: 226px; border-radius: 50%; flex: none; touch-action: none; overflow: hidden;
+  background: radial-gradient(circle at 50% 30%, #2b2e36 0%, #0d0e11 62%, #050506 100%); border: 1px solid rgba(0,0,0,.55);
+  box-shadow: 0 0 0 4px rgba(255,255,255,.55), 0 0 0 5px rgba(0,0,0,.25), 0 10px 24px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.12); }
+.cp-ring { position: absolute; inset: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,.07); }
+.cp-hint { position: absolute; color: rgba(255,255,255,.28); display: block; width: 24px; height: 24px; }
+.cp-hint.up { left: 101px; top: 10px; } .cp-hint.down { left: 101px; bottom: 10px; } .cp-hint.left { left: 10px; top: 101px; } .cp-hint.right { right: 10px; top: 101px; }
+.cp-label { position: absolute; left: 0; right: 0; top: 52%; text-align: center; font-size: 8.5px; letter-spacing: .3em; color: rgba(255,255,255,.22); text-transform: uppercase; font-weight: 700; pointer-events: none; }
+.cp-dot { position: absolute; width: 74px; height: 74px; margin: -37px 0 0 -37px; border-radius: 50%; left: 50%; top: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,.6), rgba(160,190,255,.15) 55%, transparent 70%); transition: opacity .2s; }
+.clickpad.touch .cp-dot { opacity: 1; transition: none; }
+.atv-grid { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: start; padding: 4px 6px; }
+.atv-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 10px; justify-items: center; }
+.atv-btns .btn.round { width: 64px; height: 64px; }
+.atv-side { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.rocker.tall { height: 128px; width: 56px; background: rgba(0,0,0,.2); } .appletv .rk-l { color: #20232b; }
+.appletv .rocker .rk { background: linear-gradient(180deg, #2f3138, #101114); color: #d9dce6; width: 48px; height: 48px; }
+.siri-orb { width: 22px; height: 22px; border-radius: 50%; background: conic-gradient(from 0deg, #4d9bff, #c85cff, #ff5d8a, #ffb13d, #4d9bff); filter: blur(.4px); box-shadow: 0 0 10px rgba(200,92,255,.6); }
+.appletv .btn.round.siri { width: 56px; height: 56px; }
+.tvtxt { display: grid; place-items: center; }
+</style>
+</head>
+<body data-layout="reel">
+<div id="app">
+  <header id="top">
+    <div class="brand"><b>SPIN</b><i>remote</i></div>
+    <button id="pill" class="pill" aria-label="Devices"><span class="dot"></span><span id="pill-text">Loading…</span></button>
+    <button id="btn-sound" class="icon-btn" aria-label="Sound and haptics"></button>
+    <button id="btn-layout" class="icon-btn" aria-label="Toggle ring / reel layout"></button>
+  </header>
+  <div id="demo-banner" hidden><span class="blink"></span><b>DEMO MODE</b> <span id="demo-note">simulated · no TV is being controlled</span></div>
+
+  <main id="stage">
+    <canvas id="fx"></canvas>
+    <div id="ring"></div>
+    <div id="cards"></div>
+    <div id="toast" role="status"></div>
+  </main>
+
+  <nav id="dock" aria-label="Choose remote"><div id="dock-ind"></div></nav>
+
+  <div id="backdrop"></div>
+  <section id="sheet" aria-modal="true" role="dialog"><div class="grab"></div><div id="sheet-body"></div></section>
+</div>
+<script>(()=>{var K=class{constructor(a,{onTick:e,onSelect:s,onSettle:i}={}){this.n=a,this.pos=0,this.vel=0,this.target=0,this.mode="idle",this.k=70,this.c=2*Math.sqrt(70)*.78,this.decay=4,this.maxV=16,this.onTick=e,this.onSelect=s,this.onSettle=i,this._lastTick=Math.floor(this.pos*2),this._sel=0,this._samples=[]}get selected(){return(Math.round(this.pos)%this.n+this.n)%this.n}get settled(){return this.mode==="idle"&&Math.abs(this.pos-Math.round(this.pos))<.002}wrap(a){let e=this.n;return((a+e/2)%e+e)%e-e/2}dragStart(){this.mode="drag",this.vel=0,this._samples=[]}dragBy(a,e){for(this.pos+=a,this._samples.push([e,this.pos]);this._samples.length>2&&e-this._samples[0][0]>90;)this._samples.shift()}dragEnd(a){let e=0,s=this._samples;if(s.length>1&&a-s[s.length-1][0]<80){let i=(s[s.length-1][0]-s[0][0])/1e3;i>.005&&(e=(s[s.length-1][1]-s[0][1])/i)}this.fling(e)}fling(a){a=Math.max(-this.maxV,Math.min(this.maxV,a)),this.vel=a,this.target=Math.round(this.pos+a/this.decay),this.mode="spring"}impulse(a){this.fling((this.mode==="spring"?this.vel:0)+a)}goTo(a){let e=Math.round(this.pos),s=this.wrap(a-e);this.target=e+s,this.mode="spring"}step(a){if(a=Math.min(a,1/30),this.mode==="spring"){let e=a/4;for(let s=0;s<4;s++){let i=-this.k*(this.pos-this.target)-this.c*this.vel;this.vel+=i*e,this.pos+=this.vel*e}if(Math.abs(this.pos-this.target)<.0015&&Math.abs(this.vel)<.02){this.pos=this.target,this.vel=0,this.mode="idle",this._emit(),this.onSettle&&this.onSettle(this.selected);return}}else if(this.mode==="drag"){let e=this._samples;if(e.length>1){let s=(e[e.length-1][0]-e[0][0])/1e3;this.vel=s>.005?(e[e.length-1][1]-e[0][1])/s:0}else this.vel*=.8}this._emit()}_emit(){let a=Math.floor(this.pos*2);a!==this._lastTick&&(this._lastTick=a,this.onTick&&this.onTick(Math.abs(this.vel)));let e=this.selected;e!==this._sel&&(this._sel=e,this.onSelect&&this.onSelect(e))}};var b=(t,a="")=>`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${a}>${t}</svg>`,j=t=>`<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">${t}</svg>`,d={power:b('<path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/>'),back:b('<path d="M9 6 4 11l5 5"/><path d="M4 11h9a6 6 0 0 1 0 12h-1" transform="translate(0 -4)"/>'),home:b('<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/>'),menu:b('<path d="M4 7h16M4 12h16M4 17h16"/>'),options:b('<path d="M12 4v16M5 7.5l14 9M19 7.5l-14 9"/>'),replay:b('<path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v5h5"/>'),rew:j('<path d="M11 6.5v11L3 12zM21 6.5v11L13 12z"/>'),ff:j('<path d="M13 6.5v11l8-5.5zM3 6.5v11L11 12z"/>'),play_pause:j('<path d="M3 5.5v13L11.5 12z"/><rect x="14" y="5.5" width="3" height="13" rx="1"/><rect x="19" y="5.5" width="3" height="13" rx="1"/>'),play:j('<path d="M7 4.5v15l13-7.5z"/>'),mute:b('<path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor"/><path d="m16 9.5 5 5M21 9.5l-5 5"/>'),volup:b('<path d="M3 9.5v5h3.5L11 18.5v-13L6.5 9.5z" fill="currentColor"/><path d="M15 12h6M18 9v6"/>'),voldown:b('<path d="M3 9.5v5h3.5L11 18.5v-13L6.5 9.5z" fill="currentColor"/><path d="M15 12h6"/>'),plus:b('<path d="M12 5v14M5 12h14"/>'),minus:b('<path d="M5 12h14"/>'),mic:b('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),kbd:b('<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),tv:b('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/>'),up:b('<path d="m6 15 6-6 6 6"/>'),down:b('<path d="m6 9 6 6 6-6"/>'),left:b('<path d="m15 6-6 6 6 6"/>'),right:b('<path d="m9 6 6 6-6 6"/>'),assistant:'<svg viewBox="0 0 28 14" width="28" height="14"><circle cx="4" cy="7" r="3" fill="#4d9bff"/><circle cx="11" cy="7" r="3" fill="#ff5d5d"/><circle cx="18" cy="7" r="3" fill="#ffc83d"/><circle cx="25" cy="7" r="3" fill="#35d07f"/></svg>',reel:b('<rect x="9" y="4" width="6" height="16" rx="1.5"/><path d="M5 7v10M19 7v10M2 9.5v5M22 9.5v5"/>'),ring:b('<ellipse cx="12" cy="12" rx="9.5" ry="4.5" transform="rotate(-18 12 12)"/><circle cx="19.2" cy="7.4" r="1.6" fill="currentColor"/><circle cx="4.8" cy="16.6" r="1.6" fill="currentColor"/>'),sound:b('<path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor"/><path d="M16 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>'),soundoff:b('<path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor"/><path d="m16 9.5 5 5M21 9.5l-5 5"/>'),cast:b('<path d="M3 8V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><path d="M3 12a8 8 0 0 1 8 8M3 16a4 4 0 0 1 4 4M3 20h.01"/>'),close:b('<path d="M6 6l12 12M18 6 6 18"/>')},h=(t,a,e="",s="",i="")=>`<button class="btn ${e}" data-key="${t}" aria-label="${s||t}" ${i}>${a}</button>`;var rt=(t="")=>`
+  <div class="dpad ${t}" data-nospin-x>
+    <button class="dp dp-up" data-key="up" data-repeat aria-label="Up">${d.up}</button>
+    <button class="dp dp-right" data-key="right" data-repeat aria-label="Right">${d.right}</button>
+    <button class="dp dp-down" data-key="down" data-repeat aria-label="Down">${d.down}</button>
+    <button class="dp dp-left" data-key="left" data-repeat aria-label="Left">${d.left}</button>
+    <button class="btn dp-ok" data-key="select" aria-label="OK"><span>OK</span></button>
+  </div>`,D=(t,a,e)=>`<button class="btn app ${e}" data-launch="${t}" aria-label="Launch ${a}"><span>${a}</span></button>`,$={roku:{id:"roku",name:"Roku",short:"ROKU",accent:"#b45cff",textEntry:!0,html:()=>`
+    <div class="remote roku">
+      <div class="r-top">
+        ${h("kbd",d.kbd,"round sm","Keyboard","data-kbd")}
+        <div class="wordmark">roku<i>remote</i></div>
+        ${h("power",d.power,"round sm power","Power")}
+      </div>
+      ${rt()}
+      <div class="grid2">
+        ${h("back",d.back,"pill","Back")}${h("home",d.home,"pill","Home")}
+        ${h("replay",d.replay,"pill","Replay")}${h("options",d.options,"pill","Options")}
+      </div>
+      <div class="row3">${h("rew",d.rew,"round","Rewind")}${h("play_pause",d.play_pause,"round big","Play/Pause")}${h("ff",d.ff,"round","Fast forward")}</div>
+      <div class="row3 vol">${h("vol_down",d.voldown,"pill","Volume down","data-repeat")}${h("mute",d.mute,"pill","Mute")}${h("vol_up",d.volup,"pill","Volume up","data-repeat")}</div>
+      <div class="apps4">${D("netflix","NETFLIX","a-red")}${D("youtube","YOUTUBE","a-ytred")}${D("prime","PRIME","a-blue")}${D("disney","DISNEY+","a-navy")}</div>
+    </div>`},firetv:{id:"firetv",name:"Fire TV",short:"FIRE",accent:"#ff9a1f",textEntry:!0,html:()=>`
+    <div class="remote firetv">
+      <div class="r-top">
+        ${h("kbd",d.kbd,"round sm","Keyboard","data-kbd")}
+        <div class="wordmark">fire<i>tv</i></div>
+        ${h("power",d.power,"round sm power","Power")}
+      </div>
+      ${rt()}
+      <div class="row3">${h("back",d.back,"round","Back")}${h("home",d.home,"round","Home")}${h("menu",d.menu,"round","Menu")}</div>
+      <div class="row3">${h("rew",d.rew,"round","Rewind")}${h("play_pause",d.play_pause,"round big","Play/Pause")}${h("ff",d.ff,"round","Fast forward")}</div>
+      <div class="row3 vol">${h("vol_down",d.voldown,"pill","Volume down","data-repeat")}${h("mute",d.mute,"pill","Mute")}${h("vol_up",d.volup,"pill","Volume up","data-repeat")}</div>
+    </div>`},googletv:{id:"googletv",name:"Google TV",short:"GOOGLE",accent:"#4d9bff",textEntry:!0,html:()=>`
+    <div class="remote googletv">
+      <div class="r-top">
+        ${h("kbd",d.kbd,"round sm","Keyboard","data-kbd")}
+        ${h("assistant",d.assistant,"pill assist","Assistant")}
+        ${h("power",d.power,"round sm power","Power")}
+      </div>
+      ${rt("light")}
+      <div class="row2">${h("back",d.back,"round","Back")}${h("home",d.home,"round","Home")}${h("tv",d.tv,"round","Live TV")}</div>
+      <div class="gt-mid">
+        <div class="row3 tight">${h("rew",d.rew,"round","Rewind")}${h("play_pause",d.play_pause,"round big","Play/Pause")}${h("ff",d.ff,"round","Fast forward")}</div>
+      </div>
+      <div class="gt-vol">
+        <div class="rocker">${h("vol_up",d.plus,"rk","Volume up","data-repeat")}<span class="rk-l">VOL</span>${h("vol_down",d.minus,"rk","Volume down","data-repeat")}</div>
+        ${h("mute",d.mute,"round","Mute")}
+        <div class="rocker">${h("next",d.plus,"rk","Channel up")}<span class="rk-l">CH</span>${h("prev",d.minus,"rk","Channel down")}</div>
+      </div>
+      <div class="apps2">${D("youtube","YouTube","a-ytred")}${D("netflix","NETFLIX","a-red")}</div>
+    </div>`},appletv:{id:"appletv",name:"Apple TV",short:"APPLE",accent:"#e6ebf5",textEntry:!0,html:()=>`
+    <div class="remote appletv">
+      <div class="r-top">
+        ${h("kbd",d.kbd,"round sm","Keyboard","data-kbd")}
+        <div class="wordmark">tv<i>remote</i></div>
+        <span class="spacer-sm"></span>
+      </div>
+      <div class="clickpad" data-nospin data-clickpad aria-label="Clickpad: swipe, tap edge to click, tap center to select">
+        <div class="cp-ring"></div>
+        <i class="cp-hint up">${d.up}</i><i class="cp-hint down">${d.down}</i><i class="cp-hint left">${d.left}</i><i class="cp-hint right">${d.right}</i>
+        <div class="cp-dot"></div>
+        <div class="cp-label">swipe \xB7 click</div>
+      </div>
+      <div class="atv-grid">
+        <div class="atv-btns">
+          ${h("back",d.back,"round","Menu / Back")}${h("tv",`<span class="tvtxt">${d.tv}</span>`,"round","TV / Home")}
+          ${h("play_pause",d.play_pause,"round","Play/Pause")}${h("mute",d.mute,"round","Mute")}
+        </div>
+        <div class="atv-side">
+          ${h("siri",'<i class="siri-orb"></i>',"round siri","Siri")}
+          <div class="rocker tall">${h("vol_up",d.plus,"rk","Volume up","data-repeat")}<span class="rk-l">VOL</span>${h("vol_down",d.minus,"rk","Volume down","data-repeat")}</div>
+        </div>
+      </div>
+    </div>`}},L=["roku","firetv","googletv","appletv"];var Y=null,T={sound:!0,haptics:!0};try{let t=JSON.parse(localStorage.getItem("fx")||"{}");Object.assign(T,t)}catch{}function dt(){try{localStorage.setItem("fx",JSON.stringify(T))}catch{}}function bt(){if(!Y){let t=window.AudioContext||window.webkitAudioContext;if(!t)return null;Y=new t}return Y.state==="suspended"&&Y.resume(),Y}function C(){bt()}function V({f:t=1200,f2:a=t,dur:e=.02,type:s="square",gain:i=.05,noise:p=0}){if(!T.sound)return;let n=bt();if(!n)return;let o=n.currentTime,r=n.createGain();r.gain.setValueAtTime(i,o),r.gain.exponentialRampToValueAtTime(1e-4,o+e);let l=n.createOscillator();l.type=s,l.frequency.setValueAtTime(t,o),l.frequency.exponentialRampToValueAtTime(Math.max(30,a),o+e);let c=n.createBiquadFilter();if(c.type="highpass",c.frequency.value=120,l.connect(c),c.connect(r),r.connect(n.destination),l.start(o),l.stop(o+e+.01),p){let w=Math.floor(n.sampleRate*e),g=n.createBuffer(1,w,n.sampleRate),M=g.getChannelData(0);for(let R=0;R<w;R++)M[R]=(Math.random()*2-1)*(1-R/w);let S=n.createBufferSource();S.buffer=g;let x=n.createGain();x.gain.value=p,S.connect(x),x.connect(n.destination),S.start(o)}}function A(t){if(T.haptics&&navigator.vibrate&&(!navigator.userActivation||navigator.userActivation.hasBeenActive))try{navigator.vibrate(t)}catch{}}var y={tap(){V({f:1500,f2:900,dur:.025,gain:.05,noise:.03}),A(8)},tick(t=0){V({f:700+Math.min(t,12)*60,f2:400,dur:.012,type:"triangle",gain:.045}),A(4)},thunk(){V({f:190,f2:70,dur:.09,type:"sine",gain:.16}),A(14)},hold(){V({f:1100,f2:800,dur:.012,gain:.03}),A(5)},toggle(){V({f:520,f2:880,dur:.07,type:"sine",gain:.07}),A(10)},error(){V({f:220,f2:180,dur:.12,type:"sawtooth",gain:.05}),A([30,40,30])},ok(){V({f:660,f2:990,dur:.12,type:"sine",gain:.08}),A([12,30,18])}};var Xt={"Content-Type":"application/json"},lt=null;async function F(t,a={}){if(lt)return lt(t,a);let e=await fetch(t,{...a,headers:{...Xt,...a.headers||{}}}),s=null;try{s=await e.json()}catch{}if(!e.ok){let i=new Error(s&&s.error||`HTTP ${e.status}`);throw i.code=s&&s.code,i.status=e.status,i}return s}async function xt(){try{let t=new AbortController,a=setTimeout(()=>t.abort(),2500),e=await fetch("/api/info",{signal:t.signal});if(clearTimeout(a),!e.ok)throw 0;let s=await e.json();if(!s||!s.platforms)throw 0;return s}catch{return lt=Yt(),{demo:!0,simulated_in_browser:!0,version:"sim",platforms:["roku","firetv","googletv","appletv"]}}}var wt=()=>F("/api/devices"),kt=()=>F("/api/discover",{method:"POST"}),Mt=(t,a,e)=>F("/api/devices",{method:"POST",body:JSON.stringify({platform:t,host:a,name:e})}),$t=t=>F("/api/devices/"+t,{method:"DELETE"}),Tt=t=>F("/api/send",{method:"POST",body:JSON.stringify(t)}),Lt=t=>F("/api/pair/start",{method:"POST",body:JSON.stringify({device:t})}),U=(t,a)=>F("/api/pair/finish",{method:"POST",body:JSON.stringify({device:t,code:a})});function Yt(){let t=[{id:"d1",platform:"roku",name:"Living Room Roku",host:"192.168.1.21",paired:!0},{id:"d2",platform:"firetv",name:"Bedroom Fire TV",host:"192.168.1.34",paired:!0},{id:"d3",platform:"googletv",name:"Den Google TV",host:"192.168.1.47",paired:!0},{id:"d4",platform:"appletv",name:"Office Apple TV",host:"192.168.1.58",paired:!0}],a=[{id:"d5",platform:"googletv",name:"Kitchen Google TV",host:"192.168.1.63",paired:!1},{id:"d6",platform:"appletv",name:"Patio Apple TV",host:"192.168.1.71",paired:!1}],e={roku:i=>`POST :8060/keypress/${i}`,firetv:i=>`adb shell input keyevent ${i}`,googletv:i=>`remote_message key=${i}`,appletv:i=>`pyatv remote_control.${i}()`},s=(i,p=120)=>new Promise(n=>setTimeout(()=>n(i),p));return async(i,p)=>{let n=p.body?JSON.parse(p.body):{},o=p.method||"GET";if(i==="/api/devices"&&o==="GET")return s({devices:t.map(r=>({...r})),demo:!0});if(i==="/api/discover")return await s(0,1400),a.forEach(r=>{t.find(l=>l.id===r.id)||t.push({...r})}),{found:a.length,devices:t.map(r=>({...r}))};if(i==="/api/devices"&&o==="POST"){let r={id:"m"+Math.random().toString(36).slice(2,6),paired:n.platform==="roku",name:n.name||n.platform,...n};return t.push(r),r}if(i.startsWith("/api/devices/")&&o==="DELETE"){let r=t.findIndex(l=>l.id===i.split("/").pop());return r>=0&&t.splice(r,1),{ok:!0}}if(i==="/api/send"){let r=t.find(c=>c.id===n.device);if(!r){let c=new Error("Unknown device");throw c.code="not_found",c}if(!r.paired){let c=new Error("Pair this device first");throw c.code="not_paired",c}let l=n.action==="text"?`text \u201C${n.text}\u201D`:n.action==="launch"?`launch ${n.app}`:n.key;return s({ok:!0,demo:!0,wire:n.action==="key"?e[r.platform](n.key):`${r.platform}: ${l}`},40)}if(i==="/api/pair/start"){let r=t.find(c=>c.id===n.device),l=r.platform==="googletv";return r.platform==="firetv"?s({status:"confirm",message:"Choose \u201CAlways allow\u201D on the Fire TV, then continue."}):s({status:"code",kind:l?"hex":"pin",length:l?6:4,hint:l?"A1B2C3":"1234",message:l?"Enter the 6-character code shown on your TV.":"Enter the 4-digit PIN shown on your Apple TV."})}if(i==="/api/pair/finish"){let r=t.find(c=>c.id===n.device);if(!(!n.code||n.code===(r.platform==="googletv"?"A1B2C3":"1234"))){let c=new Error("That code didn\u2019t match. (Demo code: "+(r.platform==="googletv"?"A1B2C3":"1234")+")");throw c.code="bad_code",c}return r.paired=!0,s({status:"paired"})}throw new Error("sim: "+i)}}var u=(t,a=document)=>a.querySelector(t),z=L.length,it=(t,a,e)=>Math.max(a,Math.min(e,t)),P=(t,a,e)=>t+(a-t)*e,Et=(t,a,e)=>{let s=it((e-t)/(a-t),0,1);return s*s*(3-2*s)},et=new URLSearchParams(location.search),f={info:null,devices:[],demo:!1,layout:et.get("layout")||localStorage.getItem("layout")||"reel",mix:0,mixTarget:0,chosen:{},stageW:390,stageH:700};f.mix=f.mixTarget=f.layout==="ring"?1:0;document.body.dataset.layout=f.layout;var N=u("#stage"),_t=u("#cards"),qt=u("#ring"),ct=u("#fx"),v=ct.getContext("2d"),Rt=u("#dock"),J=u("#toast"),Gt=L.map((t,a)=>{let e=document.createElement("div");return e.className="card",e.dataset.id=t,e.innerHTML=$[t].html(),e.style.setProperty("--rc",$[t].accent),_t.appendChild(e),e}),It=L.map((t,a)=>{let e=document.createElement("button");return e.className="orb",e.style.setProperty("--c",$[t].accent),e.innerHTML=`<span class="n">${String(a+1).padStart(2,"0")}</span><span class="l">${$[t].short}</span>`,e.setAttribute("aria-label",$[t].name+" remote"),e.addEventListener("click",()=>{k.moved||(C(),m.goTo(a))}),qt.appendChild(e),e}),Kt=L.map((t,a)=>{let e=document.createElement("button");return e.className="dock-item",e.dataset.i=a,e.innerHTML=`<span class="dn">${String(a+1).padStart(2,"0")}</span><span class="dl">${$[t].name}</span>`,e.addEventListener("click",()=>{C(),m.goTo(a)}),Rt.appendChild(e),e});u("#btn-layout").innerHTML=d.ring;u("#btn-layout").dataset.l="ring";var St=-1,m=new K(z,{onTick:t=>y.tick(t),onSelect:t=>{Vt(t)},onSettle:()=>{y.thunk()}}),jt=et.has("i")?+et.get("i"):+(localStorage.getItem("sel")||0);m.pos=m.target=it(jt,0,z-1);m._sel=m.selected;m._lastTick=Math.floor(m.pos*2);function Vt(t){if(t===St)return;St=t;let a=L[t];document.documentElement.style.setProperty("--accent",$[a].accent),Kt.forEach((e,s)=>e.classList.toggle("on",s===t)),u("#dock-ind").style.transform=`translateX(${t*100}%)`,It.forEach((e,s)=>e.classList.toggle("sel",s===t)),localStorage.setItem("sel",t),G()}function Ft(){let t=f.stageW,a=f.stageH,e=Math.min(1,(t-8)/340,(a-10)/640),s={W:t,H:a,fit:e,spacing:320*e*.66};s.ringC={x:0,y:-a*.315},s.Rx=Math.min(t*.4,170),s.Ry=Math.max(46,a*.125),s.tilt=-15*Math.PI/180;let i=a*.62-6;return s.sRing=Math.min(.78,i/640),s.dockY=a/2-i/2-4,s}var E=Ft();function at(t){let a=E.Rx*Math.sin(t),e=E.Ry*Math.cos(t),s=Math.cos(E.tilt),i=Math.sin(E.tilt);return{x:E.ringC.x+a*s-e*i,y:E.ringC.y+a*i+e*s,d:(1+Math.cos(t))/2}}function Ut(t){let a=Math.abs(t),e=Math.sign(t)||1,s=Math.min(a,1);return{x:e*(s*E.spacing+Math.max(a-1,0)*E.spacing*.55),y:0,s:E.fit*(1-.2*s-.1*Math.max(a-1,0)),ry:e*Math.min(a,1.25)*50,op:it(1-.45*s-Math.max(a-1,0)*.9,0,1),blur:1.4*s,dim:.35*s}}function Jt(t){let a=t*2*Math.PI/z,e=(1+Math.cos(a))/2,s=Et(.62,1,e),i=at(a);return{x:P(i.x,0,s),y:P(i.y,E.dockY,s),s:P(.04,E.sRing,s),ry:0,op:Et(.78,1,e),blur:0,dim:0}}var Ct=performance.now(),pt=0;function Ot(t){let a=Math.min(.05,(t-Ct)/1e3);Ct=t,m.step(a),f.mix+=(f.mixTarget-f.mix)*Math.min(1,a*9),Math.abs(f.mixTarget-f.mix)<.002&&(f.mix=f.mixTarget),pt+=a,Qt(),requestAnimationFrame(Ot)}function Qt(){let t=m.vel,a=Math.min(Math.abs(t)*.75,7),e=f.mix,s=m.settled&&Math.abs(e-f.mixTarget)<.01;for(let i=0;i<z;i++){let p=m.wrap(i-m.pos),n=Ut(p),o=e>0?Jt(p):n,r=e>0?{x:P(n.x,o.x,e),y:P(n.y,o.y,e),s:P(n.s,o.s,e),ry:P(n.ry,o.ry,e),op:P(n.op,o.op,e),blur:P(n.blur,o.blur,e),dim:P(n.dim,o.dim,e)}:n,l=Gt[i],c=r.blur+a*(1-e*.8);l.style.transform=`translate3d(${r.x.toFixed(2)}px,${r.y.toFixed(2)}px,0) rotateY(${r.ry.toFixed(2)}deg) scale(${Math.max(r.s,.001).toFixed(4)})`,l.style.opacity=r.op.toFixed(3),l.style.filter=c>.15?`blur(${c.toFixed(2)}px)`:"none",l.style.setProperty("--dim-o",r.dim.toFixed(3)),l.style.zIndex=Math.round(100-Math.abs(p)*10),l.style.visibility=r.op<.01?"hidden":"visible";let w=i===m.selected&&s;l.classList.toggle("inactive",!w),l.setAttribute("aria-hidden",w?"false":"true");let g=p*2*Math.PI/z,M=at(g),S=(.62+.5*M.d)*(i===m.selected&&s?1.1:1),x=It[i],R=e*(.5+.5*M.d),I=Math.min(Math.abs(t)*1,6)*(.5+.5*M.d);x.style.transform=`translate3d(${M.x.toFixed(2)}px,${M.y.toFixed(2)}px,0) scale(${S.toFixed(3)})`,x.style.opacity=R.toFixed(3),x.style.zIndex=Math.round(M.d*10)+1,x.style.filter=I>.15?`blur(${I.toFixed(2)}px)`:"none",x.style.pointerEvents=e>.6?"auto":"none",x.style.visibility=R<.01?"hidden":"visible"}Zt()}var Pt=["#b45cff","#ff9a1f","#4d9bff","#e6ebf5","#35d07f","#ff5d8a","#ffc83d","#25d0e0"];function ft(){let t=N.getBoundingClientRect(),a=Math.min(window.devicePixelRatio||1,2);f.stageW=t.width,f.stageH=t.height,ct.width=Math.round(t.width*a),ct.height=Math.round(t.height*a),v.setTransform(a,0,0,a,0,0),E=Ft()}function Zt(){let t=f.stageW,a=f.stageH,e=t/2,s=a/2,i=f.mix,p=m.vel;v.clearRect(0,0,t,a);let n=$[L[m.selected]].accent;if(i<.98){v.save(),v.globalAlpha=1-i;let o=E.spacing*.6,r=(m.pos*o%o+o)%o;v.lineWidth=1;for(let c=-8;c<=8;c++){let w=e+c*o-r,g=v.createLinearGradient(0,0,0,a);g.addColorStop(0,"transparent"),g.addColorStop(.5,n),g.addColorStop(1,"transparent"),v.strokeStyle=g,v.globalAlpha=(1-i)*(.25+Math.min(Math.abs(p)*.08,.5))*(1-Math.min(Math.abs(w-e)/t,1)*.8),v.beginPath(),v.moveTo(w,0),v.lineTo(w,a),v.stroke()}let l=Math.min(Math.abs(p),14);if(l>.8)for(let c=0;c<14;c++){let w=c*977%1,g=c*53.7%a,M=40+l*22+c%4*20,S=((c*131.3+pt*-Math.sign(p)*900*l/8)%(t+200)+(t+200))%(t+200)-100,x=v.createLinearGradient(S,0,S-Math.sign(p)*M,0);x.addColorStop(0,n),x.addColorStop(1,"transparent"),v.strokeStyle=x,v.globalAlpha=(1-i)*Math.min(l/10,.7),v.lineWidth=1+c%3,v.beginPath(),v.moveTo(S,g),v.lineTo(S-Math.sign(p)*M,g),v.stroke()}v.restore()}if(i>.01){v.save(),v.translate(e,s),v.globalAlpha=i,v.beginPath();for(let g=0;g<=80;g++){let M=at(g/80*2*Math.PI);g?v.lineTo(M.x,M.y):v.moveTo(M.x,M.y)}v.globalAlpha=i*.2,v.strokeStyle=n,v.lineWidth=1.2,v.stroke();let o=36,r=m.pos*2*Math.PI/z*-1+pt*.06,l=Math.sign(p)||0,c=Math.min(Math.abs(p),14),w=[];for(let g=0;g<o;g++){let M=-r+g/o*2*Math.PI,S=1+Math.round(c*.9);for(let x=S;x>=0;x--){let R=M+l*-1*x*.045*(c*.12+.2)*(p>0,1),I=at(R),Nt=(1.6+3.2*I.d)*(1+x*.08);w.push({z:I.d-x*.001,x:I.x,y:I.y,r:Nt,a:(.25+.65*I.d)*(x===0?1:.35/(1+x*.35)),c:Pt[g%Pt.length],blur:x===0?0:1})}}w.sort((g,M)=>g.z-M.z);for(let g of w)v.globalAlpha=i*g.a,v.fillStyle=g.c,v.shadowColor=g.c,v.shadowBlur=g.blur?10:6,v.beginPath(),v.arc(g.x,g.y,g.r,0,7),v.fill();v.restore()}}var k={down:!1,moved:!1,x0:0,y0:0,lastX:0,id:null,startedOnNoSpin:!1};function te(){return P(E.spacing,150,f.mix)}N.addEventListener("pointerdown",t=>{if(t.target.closest("[data-nospin]")){k.down=!1;return}C(),k.down=!0,k.moved=!1,k.x0=k.lastX=t.clientX,k.y0=t.clientY,k.id=t.pointerId},{passive:!0});window.addEventListener("pointermove",t=>{if(!k.down||t.pointerId!==k.id)return;if(!k.moved){let e=t.clientX-k.x0,s=t.clientY-k.y0;if(Math.abs(e)<9||Math.abs(e)<Math.abs(s)*.8)return;k.moved=!0,m.dragStart(),ae(),N.setPointerCapture&&N.setPointerCapture(t.pointerId),document.body.classList.add("spinning")}let a=t.clientX-k.lastX;k.lastX=t.clientX,m.dragBy(-a/te(),performance.now())});function Dt(t){!k.down||t&&t.pointerId!==k.id||(k.down=!1,k.moved&&(m.dragEnd(performance.now()),document.body.classList.remove("spinning"),setTimeout(()=>{k.moved=!1},30)))}window.addEventListener("pointerup",Dt);window.addEventListener("pointercancel",Dt);N.addEventListener("wheel",t=>{t.preventDefault(),C();let a=Math.abs(t.deltaX)>Math.abs(t.deltaY)?t.deltaX:t.deltaY;m.impulse(it(a,-120,120)/40)},{passive:!1});Rt.addEventListener("pointerdown",t=>{ee={x:t.clientX,moved:!1}});var ee=null;window.addEventListener("keydown",t=>{t.target.closest&&t.target.closest("input,textarea,select")||(t.key==="ArrowLeft"&&t.shiftKey?m.goTo(m.selected-1):t.key==="ArrowRight"&&t.shiftKey?m.goTo(m.selected+1):t.key==="ArrowLeft"?m.goTo(m.selected-1):t.key==="ArrowRight"&&m.goTo(m.selected+1))});function vt(t,a){f.layout=t,f.mixTarget=t==="ring"?1:0,document.body.dataset.layout=t,localStorage.setItem("layout",t),u("#btn-layout").innerHTML=t==="ring"?d.reel:d.ring,a||y.toggle()}u("#btn-layout").addEventListener("click",()=>{C(),vt(f.layout==="ring"?"reel":"ring")});vt(f.layout,!0);function ht(){let t=u("#btn-sound");t.innerHTML=T.sound||T.haptics?d.sound:d.soundoff,t.classList.toggle("off",!(T.sound||T.haptics))}u("#btn-sound").addEventListener("click",()=>{C(),Bt()});ht();var W=new Map;function ae(){W.forEach(t=>{clearTimeout(t.t),clearInterval(t.iv),t.el.classList.remove("pressed")}),W.clear()}_t.addEventListener("pointerdown",t=>{let a=t.target.closest("[data-key],[data-launch]");if(!a||a.closest(".inactive"))return;C();let e={el:a,repeated:!1,cancelled:!1};a.classList.add("pressed"),y.hold(),W.set(t.pointerId,e),a.hasAttribute("data-repeat")&&(e.t=setTimeout(()=>{e.repeated=!0,ut(a),e.iv=setInterval(()=>ut(a,!0),120)},380))});function Ht(t){let a=W.get(t.pointerId);if(a&&(W.delete(t.pointerId),clearTimeout(a.t),clearInterval(a.iv),a.el.classList.remove("pressed"),t.type==="pointerup"&&!a.repeated&&!k.moved)){let e=a.el.getBoundingClientRect();t.clientX>=e.left-12&&t.clientX<=e.right+12&&t.clientY>=e.top-12&&t.clientY<=e.bottom+12&&ut(a.el)}}window.addEventListener("pointerup",Ht);window.addEventListener("pointercancel",Ht);function ut(t,a){if(t.classList.remove("fired"),t.offsetWidth,t.classList.add("fired"),a?A(5):y.tap(),t.hasAttribute("data-kbd"))return zt();let e=L[m.selected];if(t.dataset.launch)return _({action:"launch",app:t.dataset.launch},e);_({action:"key",key:t.dataset.key},e)}(()=>{let t=u("[data-clickpad]");if(!t)return;let a=u(".cp-dot",t),e=null,s=n=>{let o=t.getBoundingClientRect(),r=o.width/226;return{x:(n.clientX-o.left)/r,y:(n.clientY-o.top)/r}};t.addEventListener("pointerdown",n=>{if(t.closest(".inactive"))return;C(),t.setPointerCapture(n.pointerId);let o=s(n);e={id:n.pointerId,x0:o.x,y0:o.y,ax:o.x,ay:o.y,moved:!1,t0:performance.now()},t.classList.add("touch"),a.style.transform=`translate(${o.x-113}px, ${o.y-113}px)`,y.hold()}),t.addEventListener("pointermove",n=>{if(!e||n.pointerId!==e.id)return;let o=s(n);a.style.transform=`translate(${o.x-113}px, ${o.y-113}px)`;let r=o.x-e.ax,l=o.y-e.ay,c=38;if(Math.hypot(o.x-e.x0,o.y-e.y0)>12&&(e.moved=!0),Math.abs(r)>=c||Math.abs(l)>=c){let w=Math.abs(r)>Math.abs(l)?r>0?"right":"left":l>0?"down":"up";e.ax=o.x,e.ay=o.y,p(w),y.tick(4),_({action:"key",key:w},"appletv")}});let i=n=>{if(!e||n.pointerId!==e.id)return;let o=s(n);if(t.classList.remove("touch"),e.moved){if(Math.hypot(o.x-e.x0,o.y-e.y0)>12&&!e.sentAny){let r=o.x-e.x0,l=o.y-e.y0;if(Math.max(Math.abs(r),Math.abs(l))<38){let c=Math.abs(r)>Math.abs(l)?r>0?"right":"left":l>0?"down":"up";p(c),y.tick(4),_({action:"key",key:c},"appletv")}}}else{let r=o.x-113,l=o.y-113,c=Math.hypot(r,l),w="select";c>76&&(w=Math.abs(r)>Math.abs(l)?r>0?"right":"left":l>0?"down":"up"),p(w),y.tap(),_({action:"key",key:w},"appletv")}e=null};t.addEventListener("pointerup",i),t.addEventListener("pointercancel",()=>{e=null,t.classList.remove("touch")});function p(n){let o=u(".cp-hint."+n,t);o&&(o.style.transition="none",o.style.color="#fff",requestAnimationFrame(()=>{o.style.transition="color .4s",o.style.color=""}))}})();var At;function Q(t,a){J.textContent=t,J.classList.toggle("err",!!a),J.classList.add("show"),clearTimeout(At),At=setTimeout(()=>J.classList.remove("show"),a?2600:1300)}function mt(t){let a=f.devices.filter(e=>e.platform===t);return a.find(e=>e.id===f.chosen[t])||a.find(e=>e.paired)||a[0]}function G(){let t=L[m.selected],a=mt(t),e=u("#pill"),s=u("#pill-text");e.classList.remove("ok","warn"),a?a.paired?(s.textContent=`${a.name} \xB7 ${f.demo?"demo":"ready"}`,e.classList.add("ok")):(s.textContent=`${a.name} \xB7 needs pairing`,e.classList.add("warn")):(s.textContent=`No ${$[t].name} yet \xB7 tap to find`,e.classList.add("warn"))}async function st(){try{let t=await wt();f.devices=t.devices||t}catch{f.devices=[]}G()}async function _(t,a){let e=mt(a);if(!e){y.error(),Q(`No ${$[a].name} set up yet`,!0),O(a);return}if(!e.paired){y.error(),q(e);return}try{let s=await Tt({device:e.id,...t});Q((f.demo?"DEMO \u25B8 ":"")+(s.wire||t.key||t.action))}catch(s){s.code==="not_paired"&&(e.paired=!1,G(),q(e)),y.error(),Q(s.message||"Failed",!0)}}var X=u("#sheet"),gt=u("#sheet-body"),yt=u("#backdrop");function nt(t){gt.innerHTML=t,X.classList.add("on"),yt.classList.add("on"),X.scrollTop=0}function ot(){X.classList.remove("on"),yt.classList.remove("on"),document.activeElement&&document.activeElement.blur()}yt.addEventListener("click",ot);var Z=null;X.addEventListener("pointerdown",t=>{t.target.closest(".grab")&&(Z=t.clientY)});window.addEventListener("pointerup",t=>{Z!==null&&t.clientY-Z>50&&ot(),Z=null});var B=t=>String(t).replace(/[&<>"]/g,a=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[a]);function se(t){let a=$[t.platform];return`<div class="row" style="--c:${a.accent}"><div class="badge">${a.short.slice(0,4)}</div>
+    <div class="meta"><div class="nm">${B(t.name)}</div><div class="st ${t.paired?"ok":"warn"}">${B(t.host)} \xB7 ${t.paired?"paired":"needs pairing"}</div></div>
+    ${t.paired?`<button class="sbtn ghost" data-act="rm" data-id="${t.id}">Remove</button>`:`<button class="sbtn" data-act="pair" data-id="${t.id}">Pair</button>`}</div>`}function O(t){let a=f.demo?'<div class="hint">Demo mode: these are simulated TVs.</div>':"";nt(`<h2>Your TVs</h2><p class="sub">Each remote controls the TV of its kind. Scan your Wi-Fi to find more.</p>${a}
+    <div id="devlist">${f.devices.map(se).join("")||'<p class="sub">Nothing yet \u2014 scan below.</p>'}</div>
+    <div class="scan"><button class="sbtn wide" data-act="scan">Scan network</button></div>
+    <div class="sec">Add by IP</div>
+    <div class="form"><select id="addp">${L.map(e=>`<option value="${e}" ${e===t?"selected":""}>${$[e].name}</option>`).join("")}</select>
+      <input id="addh" inputmode="decimal" placeholder="192.168.1.50"><button class="sbtn" data-act="add">Add</button></div>
+    <div class="err" id="deverr"></div>`)}function Bt(){nt(`<h2>Settings</h2><p class="sub">Feedback while you spin and press.</p>
+    <div class="toggle"><span>Click sounds</span><button class="sw ${T.sound?"on":""}" data-act="tsound" aria-label="Sounds"></button></div>
+    <div class="toggle"><span>Haptics ${navigator.vibrate?"":'<small style="color:var(--dim)">(not supported on this device)</small>'}</span><button class="sw ${T.haptics?"on":""}" data-act="thaptic" aria-label="Haptics"></button></div>
+    <div class="sec">TVs</div><button class="sbtn ghost wide" data-act="devices">Manage TVs &amp; pairing</button>
+    <p class="sub" style="margin-top:14px">${f.demo?'<b style="color:#ffd27a">DEMO MODE</b> \u2014 nothing is sent to a TV.':"Connected to the bridge."}</p>`)}function q(t){let a=$[t.platform];nt(`<div class="steps">PAIR \xB7 ${B(a.name.toUpperCase())}</div><h2 style="text-align:center">${B(t.name)}</h2><p class="sub" style="text-align:center" id="pmsg">Contacting the TV\u2026</p><div id="pbody"><div class="scan" style="justify-content:center"><div class="spinner"></div></div></div>`),Lt(t.id).then(e=>tt(t,e)).catch(e=>{u("#pmsg").textContent="",u("#pbody").innerHTML=`<div class="err">${B(e.message)}</div><button class="sbtn ghost wide" data-act="devices">Back</button>`,y.error()})}function tt(t,a){if(a.status==="paired")return ne(t);if(u("#pmsg").textContent=a.message||"",a.status==="confirm")u("#pbody").innerHTML='<div class="err" id="perr"></div><button class="sbtn wide" data-act="pconfirm">Continue</button>';else{let e=a.length||4,s=a.kind==="hex";a.step&&(u(".steps").textContent=`PAIR \xB7 ${ie(t)} \xB7 STEP ${a.step}/${a.of}`),u("#pbody").innerHTML=`${f.demo&&a.hint?`<div class="hint">Demo: the code is <b>${a.hint}</b></div>`:""}
+      <div class="codebox" id="cbox">${"<i></i>".repeat(e)}<input id="pcode" maxlength="${e}" ${s?'autocapitalize="characters" autocomplete="off"':'inputmode="numeric" pattern="[0-9]*"'} aria-label="Pairing code"></div>
+      <div class="err" id="perr"></div>
+      <button class="sbtn wide" data-act="psubmit" disabled>Pair</button>
+      ${a.optional?'<button class="sbtn ghost wide" style="margin-top:8px" data-act="pskip">Skip this step</button>':""}`;let i=u("#pcode"),p=[...document.querySelectorAll("#cbox i")],n=u("[data-act=psubmit]"),o=()=>{let r=i.value;p.forEach((l,c)=>{l.textContent=r[c]||"",l.classList.toggle("cur",c===Math.min(r.length,e-1))}),n.disabled=r.length!==e};i.addEventListener("input",()=>{i.value=s?i.value.replace(/[^0-9a-fA-F]/g,"").toUpperCase():i.value.replace(/\D/g,""),o(),y.tick(0),i.value.length===e&&n.focus()}),o(),setTimeout(()=>i.focus(),350)}X.dataset.pair=t.id}var ie=t=>$[t.platform].name.toUpperCase();function ne(t){t.paired=!0,y.ok(),G(),st(),u("#pmsg").textContent="",u("#pbody").innerHTML='<div style="text-align:center;font-size:54px;color:#3dff9a;text-shadow:0 0 24px #3dff9a">\u2713</div><p class="sub" style="text-align:center">Paired. This remote is live.</p><button class="sbtn wide" data-act="close">Done</button>'}gt.addEventListener("click",async t=>{let a=t.target.closest("[data-act]");if(!a)return;C();let e=a.dataset.act,s=a.dataset.id;if(e==="close"&&ot(),e==="devices"&&(y.tap(),O()),e==="tsound"&&(T.sound=!T.sound,dt(),a.classList.toggle("on",T.sound),y.toggle(),ht()),e==="thaptic"&&(T.haptics=!T.haptics,dt(),a.classList.toggle("on",T.haptics),A(25),y.toggle(),ht()),e==="rm"&&(await $t(s),await st(),O()),e==="pair"&&q(f.devices.find(p=>p.id===s)),e==="scan"){a.disabled=!0,a.innerHTML='<span class="spinner" style="display:inline-block;vertical-align:-3px;margin-right:8px"></span>Scanning\u2026';try{let p=await kt();f.devices=p.devices||f.devices,G(),O(),y.ok()}catch(p){a.disabled=!1,a.textContent="Scan network",u("#deverr").textContent=p.message,y.error()}}if(e==="add"){let p=u("#addh").value.trim(),n=u("#addp").value;if(!p)return;try{await Mt(n,p,`${$[n].name} ${p}`),await st(),O(n),y.ok()}catch(o){u("#deverr").textContent=o.message,y.error()}}let i=f.devices.find(p=>p.id===X.dataset.pair);if(e==="psubmit"){a.disabled=!0,u("#perr").textContent="";try{tt(i,await U(i.id,u("#pcode").value))}catch(p){a.disabled=!1,u("#perr").textContent=p.message,y.error();let n=u("#pcode");n&&(n.value="",n.dispatchEvent(new Event("input")))}}if(e==="pskip")try{tt(i,await U(i.id,null))}catch(p){u("#perr").textContent=p.message}if(e==="pconfirm"){a.disabled=!0;try{tt(i,await U(i.id,null))}catch(p){a.disabled=!1,u("#perr").textContent=p.message,y.error()}}});u("#pill").addEventListener("click",()=>{C();let t=mt(L[m.selected]);t&&!t.paired?q(t):O(L[m.selected])});var H="";function zt(){let t=L[m.selected];H="",nt(`<h2>Type on ${B($[t].name)}</h2><p class="sub">Keys go straight to the on-screen keyboard (search boxes, passwords\u2026).</p>
+    <div class="textbox"><input id="tin" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Type here\u2026" aria-label="Text to send"><button class="sbtn" data-act="tenter">Enter</button></div>`);let a=u("#tin");a.addEventListener("input",e=>{let s=a.value;if(t==="appletv")_({action:"text",mode:"set",text:s},t);else if(s.length>H.length&&s.startsWith(H))_({action:"text",mode:"append",text:s.slice(H.length)},t);else for(let i=H.length;i>s.length;i--)_({action:"key",key:"backspace"},t);H=s,y.tick(0)}),a.addEventListener("keydown",e=>{e.key==="Enter"&&_({action:"key",key:"enter"},t)}),setTimeout(()=>a.focus(),350)}gt.addEventListener("click",t=>{t.target.closest("[data-act=tenter]")&&(_({action:"key",key:"enter"},L[m.selected]),y.tap())});new ResizeObserver(()=>{ft()}).observe(N);ft();Vt(m.selected);requestAnimationFrame(Ot);xt().then(async t=>{if(f.info=t,f.demo=!!t.demo,u("#demo-banner").hidden=!f.demo,t.simulated_in_browser&&(u("#demo-note").textContent="simulated in your browser \xB7 no bridge found \xB7 no TV is controlled"),ft(),await st(),et.has("pair")){let a=f.devices.find(e=>!e.paired)}});"serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname==="localhost"||location.hostname==="127.0.0.1")&&navigator.serviceWorker.register("/sw.js").catch(()=>{});window.__tv={wheel:m,state:f,setLayout:vt,openDevices:O,openPair:q,openSettings:Bt,openKeyboard:zt,closeSheet:ot,get devices(){return f.devices},toast:Q};})();
+</script>
+</body>
+</html>
